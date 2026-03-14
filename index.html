@@ -63,10 +63,12 @@
     <div id="transcript">Transcript will appear here...</div>
 
     <script>
-        // Simple logic for conditional dropdown
+        // 1. YOUR DATA - We can add more here later!
         const horseData = {
             "Morgan McKenzie": ["Gator"]
         };
+
+        const webAppUrl = "https://script.google.com/macros/s/AKfycby2Io3y8ueWxOwuOb83kayXPWhOcvneyDid6-9gaCt_6WjXkddqIqZFOd2ZKa6hCDtZ/exec"; 
 
         function updateHorses() {
             const ownerSel = document.getElementById("owner").value;
@@ -83,34 +85,31 @@
             }
         }
 
-        // Voice Recognition Setup
+        // 2. DEFINE BUTTONS AND DISPLAYS
         const recordBtn = document.getElementById('recordBtn');
+        const summaryBtn = document.getElementById('summaryBtn');
         const status = document.getElementById('status');
         const transcriptDiv = document.getElementById('transcript');
 
+        // 3. VOICE RECORDING LOGIC (POST)
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
         if (Recognition) {
             const recognition = new Recognition();
             recognition.continuous = false;
-            recognition.interimResults = false;
-
+            
             recordBtn.onclick = () => {
                 recognition.start();
                 status.innerText = "Listening...";
             };
 
-                        recognition.onresult = (event) => {
+            recognition.onresult = (event) => {
                 const text = event.results[0][0].transcript;
                 transcriptDiv.innerText = text;
-                status.innerText = "Sending to Sheet...";
+                status.innerText = "Sending to AI...";
 
-                const url = "https://script.google.com/macros/s/AKfycbw-pIliJVLkw6MI0rkYYqvxMWqgkK4IFYAcgRU4llGgRDUJu64F8l-hbl7u4L_ANGE0/exec"
-
-                fetch(url, {
+                fetch(webAppUrl, {
                     method: 'POST',
-                    mode: 'no-cors', // Important for Google Apps Script
-                    cache: 'no-cache',
+                    mode: 'no-cors',
                     body: JSON.stringify({
                         owner: document.getElementById("owner").value,
                         horse: document.getElementById("horse").value,
@@ -120,17 +119,33 @@
                     status.innerText = "Saved to Sheet!";
                 }).catch(err => {
                     status.innerText = "Error saving.";
-                    console.error(err);
                 });
             };
-
-
-            recognition.onerror = () => {
-                status.innerText = "Error occurred.";
-            };
-        } else {
-            status.innerText = "Speech not supported on this browser.";
         }
+
+        // 4. SUMMARY / READ-BACK LOGIC (GET)
+        summaryBtn.onclick = () => {
+            const horse = document.getElementById("horse").value;
+            if (!horse) {
+                status.innerText = "Select a horse first.";
+                return;
+            }
+            
+            status.innerText = "Fetching history...";
+            fetch(`${webAppUrl}?horse=${encodeURIComponent(horse)}`)
+                .then(response => response.text())
+                .then(text => {
+                    status.innerText = "Speaking...";
+                    transcriptDiv.innerText = text;
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+                })
+                .catch(err => {
+                    status.innerText = "Error fetching history.";
+                });
+        };
     </script>
+
 </body>
 </html>
