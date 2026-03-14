@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scholarly Equine Data</title>
+    <style>
+        body {
+            background-color: #2c3e50; /* Dark Blue-Gray */
+            color: #ecf0f1; /* Off-white text */
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        select, button {
+            width: 100%;
+            max-width: 300px;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+        }
+        button {
+            background-color: #34495e; /* Lighter Gray-Blue */
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:active { background-color: #1abc9c; } /* Green flash when pressed */
+        #status { font-style: italic; margin-top: 10px; color: #bdc3c7; }
+        #transcript { 
+            background: rgba(0,0,0,0.2); 
+            padding: 15px; 
+            border-radius: 8px; 
+            width: 100%; 
+            max-width: 300px; 
+            min-height: 50px; 
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Scholarly Equine</h2>
+
+    <label for="owner">Owner</label>
+    <select id="owner" onchange="updateHorses()">
+        <option value="">Select Owner</option>
+        <option value="Morgan McKenzie">Morgan McKenzie</option>
+    </select>
+
+    <label for="horse">Horse</label>
+    <select id="horse">
+        <option value="">Select Horse</option>
+    </select>
+
+    <button id="recordBtn">🎤 RECORD NOTE</button>
+    <button id="summaryBtn">🔊 GET SUMMARY</button>
+
+    <p id="status">Ready.</p>
+    <div id="transcript">Transcript will appear here...</div>
+
+    <script>
+        // Simple logic for conditional dropdown
+        const horseData = {
+            "Morgan McKenzie": ["Gator"]
+        };
+
+        function updateHorses() {
+            const ownerSel = document.getElementById("owner").value;
+            const horseSel = document.getElementById("horse");
+            horseSel.innerHTML = '<option value="">Select Horse</option>';
+            
+            if (horseData[ownerSel]) {
+                horseData[ownerSel].forEach(h => {
+                    let opt = document.createElement("option");
+                    opt.value = h;
+                    opt.innerHTML = h;
+                    horseSel.appendChild(opt);
+                });
+            }
+        }
+
+        // Voice Recognition Setup
+        const recordBtn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+        const transcriptDiv = document.getElementById('transcript');
+
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (Recognition) {
+            const recognition = new Recognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recordBtn.onclick = () => {
+                recognition.start();
+                status.innerText = "Listening...";
+            };
+
+                        recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                transcriptDiv.innerText = text;
+                status.innerText = "Sending to Sheet...";
+
+                const url = "https://script.google.com/macros/s/AKfycbwMjNZ8RrD7KIpeKvMYtiESv1SjUsGL08gt2Vvg0eaX6xHvjKH6BP-B1znFokIuH4AX/exec"
+
+                fetch(url, {
+                    method: 'POST',
+                    mode: 'no-cors', // Important for Google Apps Script
+                    cache: 'no-cache',
+                    body: JSON.stringify({
+                        owner: document.getElementById("owner").value,
+                        horse: document.getElementById("horse").value,
+                        transcript: text
+                    })
+                }).then(() => {
+                    status.innerText = "Saved to Sheet!";
+                }).catch(err => {
+                    status.innerText = "Error saving.";
+                    console.error(err);
+                });
+            };
+
+
+            recognition.onerror = () => {
+                status.innerText = "Error occurred.";
+            };
+        } else {
+            status.innerText = "Speech not supported on this browser.";
+        }
+    </script>
+</body>
+</html>
